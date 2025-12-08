@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User, UserCredentials, UserRegistrationData } from '../models/User';
+import config from '../config';
+import { query } from '../utils/db';
 
 export class AuthController {
   /**
@@ -11,16 +13,14 @@ export class AuthController {
     try {
       const userData: UserRegistrationData = req.body;
 
-      // Validate required fields
-      if (!userData.username || !userData.email || !userData.password) {
-        res.status(400).json({ error: 'Username, email, and password are required' });
-        return;
-      }
-
-      // Check if user already exists (simulated)
-      const existingUser = await this.findUserByUsername(userData.username);
-      if (existingUser) {
-        res.status(409).json({ error: 'Username already exists' });
+      // Check if user already exists
+      const existingUserResult = await query(
+        'SELECT id FROM users WHERE username = $1 OR email = $2',
+        [userData.username, userData.email]
+      );
+      
+      if (existingUserResult.rowCount > 0) {
+        res.status(409).json({ error: 'Username or email already exists' });
         return;
       }
 
@@ -28,29 +28,45 @@ export class AuthController {
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(userData.password, saltRounds);
 
-      // Create user (simulated)
-      const newUser: User = {
-        id: Math.floor(Math.random() * 1000000),
-        username: userData.username,
-        email: userData.email,
-        passwordHash: passwordHash,
-        phoneNumber: userData.phoneNumber,
-        displayName: userData.displayName || userData.username,
-        status: 'online',
-        lastSeen: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
+      // Create user in database
+      const createUserResult = await query(
+        `INSERT INTO users 
+         (username, email, password_hash, phone_number, display_name, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING id, username, email, phone_number, display_name, status, last_seen, created_at, updated_at`,
+        [
+          userData.username,
+          userData.email,
+          passwordHash,
+          userData.phoneNumber || null,
+          userData.displayName || userData.username
+        ]
+      );
+
+      const newUser = createUserResult.rows[0];
+      
+      // Ensure proper typing for the user object
+      const userWithCorrectTypes: User = {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        passwordHash: '', // We don't send this to the client
+        phoneNumber: newUser.phone_number,
+        displayName: newUser.display_name,
+        profilePictureUrl: undefined,
+        status: newUser.status || 'online',
+        lastSeen: new Date(newUser.last_seen),
+        createdAt: new Date(newUser.created_at),
+        updatedAt: new Date(newUser.updated_at)
       };
 
       // Generate JWT token
-      const token = jwt.sign(
-        { userId: newUser.id, username: newUser.username },
-        process.env.JWT_SECRET || 'your-super-secret-jwt-key-here',
-        { expiresIn: '24h' }
-      );
+      const payload = { userId: userWithCorrectTypes.id, username: userWithCorrectTypes.username };
+      // Simple approach without explicit options typing
+      const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
 
       // Return user data without password hash and with token
-      const { passwordHash: _, ...userWithoutPassword } = newUser;
+      const { passwordHash: _, ...userWithoutPassword } = userWithCorrectTypes;
       res.status(201).json({
         user: userWithoutPassword,
         token
@@ -68,36 +84,51 @@ export class AuthController {
     try {
       const credentials: UserCredentials = req.body;
 
-      // Validate required fields
-      if (!credentials.username || !credentials.password) {
-        res.status(400).json({ error: 'Username and password are required' });
-        return;
-      }
-
-      // Find user (simulated)
-      const user = await this.findUserByUsername(credentials.username);
-      if (!user) {
+      // Find user in database
+      const userResult = await query(
+        'SELECT id, username, email, password_hash, phone_number, display_name, profile_picture_url, status, last_seen, created_at, updated_at FROM users WHERE username = $1',
+        [credentials.username]
+      );
+      
+      if (userResult.rowCount === 0) {
         res.status(401).json({ error: 'Invalid credentials' });
         return;
       }
 
+      const userRow = userResult.rows[0];
+      
       // Verify password
-      const isValidPassword = await bcrypt.compare(credentials.password, user.passwordHash);
+      const isValidPassword = await bcrypt.compare(credentials.password, userRow.password_hash);
       if (!isValidPassword) {
         res.status(401).json({ error: 'Invalid credentials' });
         return;
       }
 
       // Update last seen
-      user.lastSeen = new Date();
-      user.status = 'online';
+      await query(
+        'UPDATE users SET last_seen = NOW(), status = $1 WHERE id = $2',
+        ['online', userRow.id]
+      );
+
+      // Ensure proper typing for the user object
+      const user: User = {
+        id: userRow.id,
+        username: userRow.username,
+        email: userRow.email,
+        passwordHash: '', // We don't send this to the client
+        phoneNumber: userRow.phone_number,
+        displayName: userRow.display_name,
+        profilePictureUrl: userRow.profile_picture_url || undefined,
+        status: userRow.status || 'online',
+        lastSeen: new Date(userRow.last_seen),
+        createdAt: new Date(userRow.created_at),
+        updatedAt: new Date(userRow.updated_at)
+      };
 
       // Generate JWT token
-      const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        process.env.JWT_SECRET || 'your-super-secret-jwt-key-here',
-        { expiresIn: '24h' }
-      );
+      const payload = { userId: user.id, username: user.username };
+      // Simple approach without explicit options typing
+      const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
 
       // Return user data without password hash and with token
       const { passwordHash: _, ...userWithoutPassword } = user;
@@ -109,15 +140,5 @@ export class AuthController {
       console.error('Login error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
-
-  /**
-   * Simulate finding a user by username
-   * In a real implementation, this would query the database
-   */
-  private async findUserByUsername(username: string): Promise<User | null> {
-    // This is a simulated implementation
-    // In reality, you would query your database here
-    return null;
   }
 }

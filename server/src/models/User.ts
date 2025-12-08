@@ -6,7 +6,7 @@ export interface User {
   phoneNumber?: string;
   displayName?: string;
   profilePictureUrl?: string;
-  status: string;
+  status: 'online' | 'offline' | 'away';
   lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;

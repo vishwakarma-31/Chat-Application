@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import config from '../config';
 
 interface JwtPayload {
   userId: number;
@@ -22,7 +23,7 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     return;
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-here', (err, decoded) => {
+  jwt.verify(token, config.jwtSecret, (err, decoded) => {
     if (err) {
       res.status(403).json({ error: 'Invalid or expired token' });
       return;

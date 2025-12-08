@@ -5,9 +5,13 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Import our new components
+import config from './config';
 import { SocketManager } from './services/SocketManager';
 import linkPreviewRoutes from './routes/linkPreviewRoutes';
 import authRoutes from './routes/authRoutes';
+import messagesRoutes from './routes/messagesRoutes';
+import userProfileRoutes from './routes/userProfileRoutes';
+import groupsRoutes from './routes/groupsRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +27,9 @@ app.use(cors());
 // Configure API routes
 app.use('/api/preview', linkPreviewRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/profile', userProfileRoutes);
+app.use('/api/groups', groupsRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
@@ -32,7 +39,7 @@ app.get('/', (req, res) => {
 // Configure Socket.IO with Redis adapter
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: config.clientUrl,
     methods: ["GET", "POST"]
   }
 });
@@ -50,7 +57,6 @@ io.on('connection', (socket) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+server.listen(config.port, () => {
+  console.log(`Server is running on port ${config.port}`);
 });

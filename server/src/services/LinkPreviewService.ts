@@ -1,4 +1,6 @@
 import { createClient } from 'redis';
+import * as cheerio from 'cheerio';
+import config from '../config';
 
 interface LinkPreview {
   url: string;
@@ -13,8 +15,7 @@ export class LinkPreviewService {
   private readonly CACHE_EXPIRY = 3600; // 1 hour in seconds
 
   constructor() {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    this.redisClient = createClient({ url: redisUrl });
+    this.redisClient = createClient({ url: config.redisUrl });
     
     this.redisClient.connect().catch((err) => {
       console.error('Redis connection error:', err);
@@ -34,7 +35,7 @@ export class LinkPreviewService {
         return cached;
       }
 
-      // Generate preview (stub implementation)
+      // Generate preview
       const preview = await this.generatePreview(url);
       
       // Cache the result
@@ -83,21 +84,116 @@ export class LinkPreviewService {
   }
 
   /**
-   * Generate link preview (stub implementation)
+   * Generate link preview by scraping the URL
    * @param url The URL to generate preview for
    * @returns LinkPreview object
    */
   private async generatePreview(url: string): Promise<LinkPreview> {
-    // In a real implementation, you would fetch the URL and parse the HTML
-    // For now, we'll return a stub response
+    try {
+      // Fetch the URL content
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; LinkPreviewBot/1.0)'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      // Extract metadata
+      const title = this.extractTitle($, url);
+      const description = this.extractDescription($);
+      const image = this.extractImage($, url);
+      const siteName = this.extractSiteName($, url);
+      
+      return {
+        url,
+        title,
+        description,
+        image,
+        siteName
+      };
+    } catch (error) {
+      console.error('Error scraping URL:', error);
+      // Fallback to basic preview if scraping fails
+      return {
+        url,
+        title: `Preview for ${new URL(url).hostname}`,
+        description: `Unable to fetch detailed preview for ${url}`,
+        image: '',
+        siteName: new URL(url).hostname
+      };
+    }
+  }
+  
+  /**
+   * Extract title from HTML
+   */
+  private extractTitle($: cheerio.CheerioAPI, url: string): string {
+    // Try og:title first
+    let title = $('meta[property="og:title"]').attr('content') ||
+                $('meta[name="twitter:title"]').attr('content') ||
+                $('title').text();
+                
+    // Fallback to hostname if no title found
+    return title ? title.trim() : new URL(url).hostname;
+  }
+  
+  /**
+   * Extract description from HTML
+   */
+  private extractDescription($: cheerio.CheerioAPI): string {
+    // Try og:description first
+    let description = $('meta[property="og:description"]').attr('content') ||
+                      $('meta[name="twitter:description"]').attr('content') ||
+                      $('meta[name="description"]').attr('content');
+                      
+    return description ? description.trim() : '';
+  }
+  
+  /**
+   * Extract image from HTML
+   */
+  private extractImage($: cheerio.CheerioAPI, url: string): string {
+    // Try og:image first
+    let image = $('meta[property="og:image"]').attr('content') ||
+                $('meta[name="twitter:image"]').attr('content') ||
+                $('link[rel="image_src"]').attr('href');
+                
+    // Convert relative URLs to absolute URLs
+    if (image && !image.startsWith('http')) {
+      try {
+        const baseUrl = new URL(url);
+        image = new URL(image, baseUrl).href;
+      } catch (e) {
+        // If we can't resolve the relative URL, return empty
+        image = '';
+      }
+    }
     
-    return {
-      url,
-      title: `Preview for ${url}`,
-      description: `This is a preview of the content at ${url}`,
-      image: '',
-      siteName: new URL(url).hostname
-    };
+    return image || '';
+  }
+  
+  /**
+   * Extract site name from HTML
+   */
+  private extractSiteName($: cheerio.CheerioAPI, url: string): string {
+    // Try og:site_name first
+    let siteName = $('meta[property="og:site_name"]').attr('content') ||
+                   $('meta[name="application-name"]').attr('content');
+                   
+    // Fallback to hostname
+    return siteName ? siteName.trim() : new URL(url).hostname;
   }
 
   /**

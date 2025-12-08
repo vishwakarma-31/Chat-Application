@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
+import config from '../config';
 
 export class SocketManager {
   private io: Server;
@@ -14,9 +15,7 @@ export class SocketManager {
   }
 
   private setupRedisAdapter(): void {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    
-    this.pubClient = createClient({ url: redisUrl });
+    this.pubClient = createClient({ url: config.redisUrl });
     this.subClient = this.pubClient.duplicate();
 
     Promise.all([

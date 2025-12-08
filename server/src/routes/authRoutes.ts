@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController';
+import { validate, userRegistrationSchema, userLoginSchema } from '../middleware/validationMiddleware';
 
 const router = Router();
 const authController = new AuthController();
@@ -9,13 +10,13 @@ const authController = new AuthController();
  * @desc Register a new user
  * @access Public
  */
-router.post('/register', (req, res) => authController.register(req, res));
+router.post('/register', validate(userRegistrationSchema), (req, res) => authController.register(req, res));
 
 /**
  * @route POST /api/auth/login
  * @desc Login user
  * @access Public
  */
-router.post('/login', (req, res) => authController.login(req, res));
+router.post('/login', validate(userLoginSchema), (req, res) => authController.login(req, res));
 
 export default router;
