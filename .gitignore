@@ -56,5 +56,6 @@ Thumbs.db
 *.tsbuildinfo
 
 # Package lock files
-package-lock.json
-yarn.lock
+# Uncomment the package manager you're NOT using:
+# package-lock.json  # npm
+# yarn.lock          # Yarn
