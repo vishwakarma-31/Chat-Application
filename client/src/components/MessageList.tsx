@@ -5,32 +5,23 @@ import { Message } from '../types/chat';
 
 interface MessageListProps {
   messages: Message[];
-  currentUserId: string;
-  onMessageAction?: (action: string, messageId: string) => void;
+  currentUserId: number; // Changed from string to number to match User.id
 }
 
 const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
-  currentUserId,
-  onMessageAction 
+  currentUserId
 }) => {
-  const handleMessageAction = useCallback((action: string, messageId: string) => {
-    if (onMessageAction) {
-      onMessageAction(action, messageId);
-    }
-  }, [onMessageAction]);
-
-  const renderItem = useCallback((index: number, message: Message) => {
+  const renderItem = useCallback((_index: number, message: Message) => {
     const isOwnMessage = message.senderId === currentUserId;
     return (
       <MessageBubble
         key={message.id}
         message={message}
         isOwnMessage={isOwnMessage}
-        onAction={handleMessageAction}
       />
     );
-  }, [currentUserId, handleMessageAction]);
+  }, [currentUserId]);
 
   if (messages.length === 0) {
     return (

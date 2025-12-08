@@ -1,26 +1,102 @@
 import { create } from 'zustand';
 import { Message, Conversation } from '../types/chat';
 
+/**
+ * Interface defining the shape of the chat store state
+ * Manages conversations, messages, and UI state for the chat application
+ */
 interface ChatState {
+  /**
+   * List of all conversations
+   */
   conversations: Conversation[];
+  
+  /**
+   * ID of the currently active conversation
+   */
   activeConversationId: string | null;
-  messages: Record<string, Message[]>; // conversationId -> messages
+  
+  /**
+   * Map of messages organized by conversation ID
+   * Key: conversationId, Value: array of messages
+   */
+  messages: Record<string, Message[]>;
+  
+  /**
+   * Loading state indicator
+   */
   isLoading: boolean;
+  
+  /**
+   * Error message if any
+   */
   error: string | null;
   
   // Actions
+  
+  /**
+   * Set the active conversation
+   * @param conversationId - ID of the conversation to set as active
+   */
   setActiveConversation: (conversationId: string | null) => void;
+  
+  /**
+   * Add a new message to a conversation
+   * @param conversationId - ID of the conversation to add the message to
+   * @param message - The message to add
+   */
   addMessage: (conversationId: string, message: Message) => void;
+  
+  /**
+   * Set messages for a conversation (replaces existing messages)
+   * @param conversationId - ID of the conversation to set messages for
+   * @param messages - Array of messages to set
+   */
   setMessages: (conversationId: string, messages: Message[]) => void;
+  
+  /**
+   * Add a new conversation
+   * @param conversation - The conversation to add
+   */
   addConversation: (conversation: Conversation) => void;
+  
+  /**
+   * Update an existing conversation
+   * @param conversationId - ID of the conversation to update
+   * @param updates - Partial updates to apply to the conversation
+   */
   updateConversation: (conversationId: string, updates: Partial<Conversation>) => void;
+  
+  /**
+   * Remove a conversation
+   * @param conversationId - ID of the conversation to remove
+   */
   removeConversation: (conversationId: string) => void;
+  
+  /**
+   * Set the loading state
+   * @param loading - Boolean indicating if the app is loading
+   */
   setLoading: (loading: boolean) => void;
+  
+  /**
+   * Set an error message
+   * @param error - Error message to set, or null to clear
+   */
   setError: (error: string | null) => void;
+  
+  /**
+   * Clear all messages for a conversation
+   * @param conversationId - ID of the conversation to clear messages for
+   */
   clearMessages: (conversationId: string) => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+/**
+ * Zustand store for managing chat application state
+ * Provides a centralized state management solution for conversations and messages
+ */
+export const useChatStore = create<ChatState>((set) => ({
   conversations: [],
   activeConversationId: null,
   messages: {},

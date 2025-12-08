@@ -1,6 +1,10 @@
 import { Message, Conversation, LinkPreview } from '../types/chat';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+import { 
+  API_BASE_URL, 
+  MESSAGE_LIMIT, 
+  HTTP_POST,
+  HTTP_GET
+} from '../constants';
 
 export class ChatService {
   /**
@@ -8,12 +12,19 @@ export class ChatService {
    */
   static async fetchConversations(userId: string): Promise<Conversation[]> {
     try {
-      // In a real implementation, this would be an API call
-      // const response = await fetch(`${API_BASE_URL}/conversations/${userId}`);
-      // return response.json();
+      const response = await fetch(`${API_BASE_URL}/messages/conversations/${userId}`, {
+        method: HTTP_GET,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
       
-      // Mock implementation for now
-      return [];
+      if (!response.ok) {
+        throw new Error('Failed to fetch conversations');
+      }
+      
+      return response.json();
     } catch (error) {
       console.error('Error fetching conversations:', error);
       throw error;
@@ -21,16 +32,30 @@ export class ChatService {
   }
 
   /**
-   * Fetch messages for a conversation
+   * Fetch messages for a conversation with pagination support
+   * @param conversationId The ID of the conversation
+   * @param limit Number of messages to fetch (default: 50)
+   * @param offset Number of messages to skip (for pagination)
    */
-  static async fetchMessages(conversationId: string): Promise<Message[]> {
+  static async fetchMessages(
+    conversationId: string, 
+    limit: number = MESSAGE_LIMIT, 
+    offset: number = 0
+  ): Promise<Message[]> {
     try {
-      // In a real implementation, this would be an API call
-      // const response = await fetch(`${API_BASE_URL}/messages/${conversationId}`);
-      // return response.json();
+      const response = await fetch(`${API_BASE_URL}/messages/${conversationId}?limit=${limit}&offset=${offset}`, {
+        method: HTTP_GET,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        }
+      });
       
-      // Mock implementation for now
-      return [];
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+      
+      return response.json();
     } catch (error) {
       console.error('Error fetching messages:', error);
       throw error;
@@ -42,23 +67,20 @@ export class ChatService {
    */
   static async sendMessage(message: Omit<Message, 'id' | 'timestamp' | 'status'>): Promise<Message> {
     try {
-      // In a real implementation, this would be an API call
-      // const response = await fetch(`${API_BASE_URL}/messages`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(message),
-      // });
-      // return response.json();
+      const response = await fetch(`${API_BASE_URL}/messages`, {
+        method: HTTP_POST,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify(message),
+      });
       
-      // Mock implementation for now
-      return {
-        ...message,
-        id: Math.random().toString(36).substr(2, 9),
-        timestamp: new Date(),
-        status: 'sent'
-      };
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+      
+      return response.json();
     } catch (error) {
       console.error('Error sending message:', error);
       throw error;
@@ -71,7 +93,7 @@ export class ChatService {
   static async generateLinkPreview(url: string): Promise<LinkPreview | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/preview`, {
-        method: 'POST',
+        method: HTTP_POST,
         headers: {
           'Content-Type': 'application/json',
         },

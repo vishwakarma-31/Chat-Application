@@ -95,7 +95,7 @@ This is a monorepo structure with client and server packages following a feature
    ```
 
 5. **Access the application:**
-   - Frontend: http://localhost:3000 (or next available port)
+   - Frontend: http://localhost:3002 (or next available port)
    - Backend API: http://localhost:8000
 
 ## Development Workflow
@@ -136,7 +136,7 @@ Create a `.env` file in the server directory:
 ```env
 NODE_ENV=development
 PORT=8000
-CLIENT_URL=http://localhost:3000
+CLIENT_URL=http://localhost:3002
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-super-secret-jwt-key-here
 ```

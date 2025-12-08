@@ -4,7 +4,6 @@ export interface User {
   email: string;
   displayName: string;
   profilePictureUrl?: string;
-  phoneNumber?: string; // Added phoneNumber property
   status: 'online' | 'offline' | 'away';
   lastSeen?: Date;
   createdAt?: Date;
@@ -42,4 +41,17 @@ export interface LinkPreview {
   description: string;
   image: string;
   siteName: string;
+}
+
+export interface UserCredentials {
+  username: string;
+  password: string;
+}
+
+export interface UserRegistrationData {
+  username: string;
+  email: string;
+  password: string;
+  phoneNumber?: string;
+  displayName?: string;
 }

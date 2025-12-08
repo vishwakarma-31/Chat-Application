@@ -9,12 +9,16 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/jwt-decode": "^2.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "jwt-decode": "^4.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.8.0",
+    "react-virtuoso": "^4.6.2",
     "socket.io-client": "^4.7.2",
-    "zustand": "^4.4.1",
-    "react-virtuoso": "^4.6.2"
+    "zustand": "^4.4.1"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

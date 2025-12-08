@@ -1,6 +1,17 @@
 import { User } from '../types/chat';
+import { jwtDecode } from 'jwt-decode';
+import { 
+  API_BASE_URL, 
+  AUTH_TOKEN_KEY, 
+  HTTP_POST 
+} from '../constants';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+interface JwtPayload {
+  userId: number;
+  username: string;
+  exp: number;
+  iat: number;
+}
 
 export class AuthService {
   /**
@@ -15,7 +26,7 @@ export class AuthService {
   }): Promise<{ user: User; token: string } | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
+        method: HTTP_POST,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -43,7 +54,7 @@ export class AuthService {
   }): Promise<{ user: User; token: string } | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
+        method: HTTP_POST,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -67,7 +78,7 @@ export class AuthService {
    */
   static async logout(): Promise<void> {
     // Clear token from localStorage or sessionStorage
-    localStorage.removeItem('authToken');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     // Additional cleanup if needed
   }
 
@@ -75,21 +86,32 @@ export class AuthService {
    * Get current user from token
    */
   static getCurrentUser(): User | null {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
     if (!token) return null;
 
     try {
-      // Decode JWT token to get user info
-      // This is a simplified example - in practice, you'd use a JWT library
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Decode JWT token to get user info using jwt-decode library
+      const payload: JwtPayload = jwtDecode(token);
+      
+      // Check if token is expired
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (payload.exp < currentTime) {
+        // Token expired, remove it
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        return null;
+      }
+      
       return {
         id: payload.userId,
         username: payload.username,
+        email: '', // Email is not in the token, would need to fetch from API
         displayName: payload.username,
         status: 'online'
       } as User;
     } catch (error) {
       console.error('Error decoding token:', error);
+      // Invalid token, remove it
+      localStorage.removeItem(AUTH_TOKEN_KEY);
       return null;
     }
   }
@@ -98,13 +120,31 @@ export class AuthService {
    * Set authentication token
    */
   static setAuthToken(token: string): void {
-    localStorage.setItem('authToken', token);
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
   }
 
   /**
    * Get authentication token
    */
   static getAuthToken(): string | null {
-    return localStorage.getItem('authToken');
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  }
+  
+  /**
+   * Check if user is authenticated
+   */
+  static isAuthenticated(): boolean {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) return false;
+    
+    try {
+      const payload: JwtPayload = jwtDecode(token);
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp > currentTime;
+    } catch (error) {
+      // Invalid token
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      return false;
+    }
   }
 }

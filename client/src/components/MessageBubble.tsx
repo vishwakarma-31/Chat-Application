@@ -4,20 +4,12 @@ import { Message } from '../types/chat';
 interface MessageBubbleProps {
   message: Message;
   isOwnMessage: boolean;
-  onAction?: (action: string, messageId: string) => void;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message, 
-  isOwnMessage,
-  onAction 
+  isOwnMessage
 }) => {
-  const handleAction = (action: string) => {
-    if (onAction) {
-      onAction(action, message.id);
-    }
-  };
-
   return (
     <div className={`flex mb-4 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
       <div 

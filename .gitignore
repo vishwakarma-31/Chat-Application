@@ -57,5 +57,5 @@ Thumbs.db
 
 # Package lock files
 # Only ignore the package manager you're NOT using:
-# yarn.lock          # Yarn (uncomment if using npm)
-package-lock.json  # npm (uncomment if using Yarn)
+yarn.lock          # Yarn (uncomment if using npm)
+# package-lock.json  # npm (uncomment if using Yarn)
