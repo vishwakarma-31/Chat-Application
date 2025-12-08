@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: omegachat
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -23,7 +23,7 @@ services:
     container_name: omegachat-redis
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -38,7 +38,7 @@ services:
       - CASSANDRA_RPC_ADDRESS=0.0.0.0
       - CASSANDRA_BROADCAST_RPC_ADDRESS=127.0.0.1
     ports:
-      - "9042:9042"
+      - "127.0.0.1:9042:9042"
     volumes:
       - cassandra_data:/var/lib/cassandra
     networks:
@@ -58,7 +58,7 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/omegachat
       - REDIS_URL=redis://redis:6379
       - CASSANDRA_HOSTS=cassandra
-      - JWT_SECRET=7113bf30da75f28e2a2258388728d9b9e1fa59ba1fc4c9327a121ef3725c2de22fabe069ce38aa9017ac02a6737b6f497320c8ab4646e772535e71b81cd2d17a
+
     depends_on:
       - postgres
       - redis

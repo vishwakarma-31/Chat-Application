@@ -4,11 +4,20 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Environment validation
-const requiredEnvVars = ['JWT_SECRET'];
+const requiredEnvVars = ['JWT_SECRET', 'DATABASE_URL'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
   throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+}
+
+// Ensure critical config values are not undefined
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+
+if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+  throw new Error('Either DATABASE_URL or POSTGRES_URL environment variable is required');
 }
 
 // Configuration with fallback values
@@ -18,13 +27,13 @@ export const config = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3002',
   
   // Database configuration
-  databaseUrl: process.env.POSTGRES_URL || process.env.DATABASE_URL || 'postgresql://app_user:Av.51200743@localhost:5432/omegachat',
+  databaseUrl: process.env.POSTGRES_URL || process.env.DATABASE_URL,
   
   // Redis configuration
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  redisUrl: process.env.REDIS_URL,
   
   // JWT configuration
-  jwtSecret: process.env.JWT_SECRET || 'fallback-jwt-secret-for-development-only',
+  jwtSecret: process.env.JWT_SECRET as string,
   jwtExpiration: process.env.JWT_EXPIRATION || '24h',
   
   // Cassandra configuration (if needed)
@@ -36,16 +45,12 @@ export const config = {
 };
 
 // Log warnings for missing non-critical environment variables
-if (!process.env.DATABASE_URL) {
-  console.warn('DATABASE_URL not set, using default PostgreSQL connection string');
-}
-
 if (!process.env.REDIS_URL) {
-  console.warn('REDIS_URL not set, using default Redis connection string');
+  console.warn('REDIS_URL not set');
 }
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback-jwt-secret-for-development-only') {
-  console.warn('JWT_SECRET not set properly, using fallback secret (NOT SECURE FOR PRODUCTION)');
+if (!process.env.CLIENT_URL) {
+  console.warn('CLIENT_URL not set');
 }
 
 export default config;

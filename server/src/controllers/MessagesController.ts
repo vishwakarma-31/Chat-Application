@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Client } from 'cassandra-driver';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate } from 'uuid';
 import config from '../config';
 
 // Initialize Cassandra client
@@ -17,11 +17,10 @@ export class MessagesController {
   public async fetchMessages(req: Request, res: Response): Promise<void> {
     try {
       const { conversationId } = req.params;
-      const { limit = 50, offset = 0 } = req.query;
+      const { limit = 50, pageState } = req.query;
       
-      // Convert limit and offset to numbers
+      // Convert limit to number
       const limitNum = parseInt(limit as string, 10);
-      const offsetNum = parseInt(offset as string, 10);
       
       // Validate UUID format for conversationId
       if (!conversationId || !isValidUUID(conversationId)) {
@@ -29,21 +28,32 @@ export class MessagesController {
         return;
       }
       
-      // Query messages from Cassandra
-      // Using LIMIT and OFFSET for pagination (note: this is not the most efficient way in Cassandra)
+      // Query messages from Cassandra using cursor-based pagination
       const query = `
         SELECT * FROM messages 
-        WHERE conversation_id = ? 
-        LIMIT ?
+        WHERE conversation_id = ?
       `;
       
-      const params = [conversationId, limitNum + offsetNum];
-      const result = await cassandraClient.execute(query, params, { prepare: true });
+      const params = [conversationId];
       
-      // Apply offset on the application side since Cassandra doesn't support OFFSET directly
-      const messages = result.rows.slice(offsetNum);
+      // Execute query with page state for pagination
+      const options: any = { 
+        prepare: true, 
+        fetchSize: limitNum 
+      };
       
-      res.json(messages);
+      // If pageState is provided, use it for pagination
+      if (pageState) {
+        options.pageState = pageState;
+      }
+      
+      const result = await cassandraClient.execute(query, params, options);
+      
+      // Return messages with pagination info
+      res.json({
+        messages: result.rows,
+        pageState: result.pageState
+      });
     } catch (error) {
       console.error('Error fetching messages:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -149,16 +159,24 @@ export class MessagesController {
       
       const userIdInt = parseInt(userId, 10);
       
-      // Query conversations from Cassandra where user is a participant
-      const query = `
-        SELECT * FROM conversations 
-        WHERE conversation_id IN (
-          SELECT conversation_id FROM user_conversations WHERE user_id = ?
-        )
-      `;
+      // Query user_conversations to get the list of conversation IDs first
+      const userConversationsQuery = `SELECT conversation_id FROM user_conversations WHERE user_id = ?`;
+      const userConversationsParams = [userIdInt];
+      const userConversationsResult = await cassandraClient.execute(userConversationsQuery, userConversationsParams, { prepare: true });
       
-      const params = [userIdInt];
-      const result = await cassandraClient.execute(query, params, { prepare: true });
+      // Extract conversation IDs
+      const conversationIds = userConversationsResult.rows.map(row => row.conversation_id);
+      
+      // If no conversations, return empty array
+      if (conversationIds.length === 0) {
+        res.json([]);
+        return;
+      }
+      
+      // Query conversations using the retrieved IDs
+      const conversationsQuery = `SELECT * FROM conversations WHERE conversation_id IN ?`;
+      const conversationsParams = [conversationIds];
+      const result = await cassandraClient.execute(conversationsQuery, conversationsParams, { prepare: true });
       
       res.json(result.rows);
     } catch (error) {
@@ -169,9 +187,8 @@ export class MessagesController {
 }
 
 /**
- * Validate UUID format
+ * Validate UUID format using standard library
  */
 function isValidUUID(uuid: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
+  return validate(uuid);
 }

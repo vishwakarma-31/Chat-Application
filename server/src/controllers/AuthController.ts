@@ -5,13 +5,29 @@ import { User, UserCredentials, UserRegistrationData } from '../models/User';
 import config from '../config';
 import { query } from '../utils/db';
 
+// Utility function to omit sensitive fields from user objects
+const omitSensitiveFields = <T extends Record<string, any>>(obj: T, ...keysToOmit: (keyof T)[]): Partial<T> => {
+  const result = { ...obj };
+  keysToOmit.forEach(key => {
+    delete result[key];
+  });
+  return result;
+};
+
 export class AuthController {
   /**
    * Register a new user
    */
   public async register(req: Request, res: Response): Promise<void> {
     try {
-      const userData: UserRegistrationData = req.body;
+      // req.body is already validated by middleware, but we'll double-check types
+      const userData: UserRegistrationData = {
+        username: req.body.username,
+        email: req.body.email,
+        password: req.body.password,
+        phoneNumber: req.body.phoneNumber,
+        displayName: req.body.displayName
+      };
 
       // Check if user already exists
       const existingUserResult = await query(
@@ -66,7 +82,7 @@ export class AuthController {
       const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
 
       // Return user data without password hash and with token
-      const { passwordHash: _, ...userWithoutPassword } = userWithCorrectTypes;
+      const userWithoutPassword = omitSensitiveFields(userWithCorrectTypes, 'passwordHash');
       res.status(201).json({
         user: userWithoutPassword,
         token
@@ -82,7 +98,11 @@ export class AuthController {
    */
   public async login(req: Request, res: Response): Promise<void> {
     try {
-      const credentials: UserCredentials = req.body;
+      // req.body is already validated by middleware, but we'll double-check types
+      const credentials: UserCredentials = {
+        username: req.body.username,
+        password: req.body.password
+      };
 
       // Find user in database
       const userResult = await query(
@@ -131,7 +151,7 @@ export class AuthController {
       const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '24h' });
 
       // Return user data without password hash and with token
-      const { passwordHash: _, ...userWithoutPassword } = user;
+      const userWithoutPassword = omitSensitiveFields(user, 'passwordHash');
       res.json({
         user: userWithoutPassword,
         token
