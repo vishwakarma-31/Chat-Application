@@ -9,11 +9,11 @@ import {
   LoginResponse 
 } from '../types/chatTypes';
 
-// Define event types
+// Define event types (keeping interfaces same as original)
 interface ServerToClientEvents {
   'user-connected': (user: UserEntity) => void;
   'user-disconnected': (userId: string) => void;
-  'receive-message': (message: MessageEntity) => void;
+  'receive-message': (message: MessageEntity & { conversationId: string }) => void;
   'message-delivered': (messageId: string) => void;
   'message-read': (messageId: string) => void;
   'typing-start': (userId: string, conversationId: string) => void;
@@ -35,22 +35,25 @@ interface ClientToServerEvents {
   'logout': () => void;
 }
 
-const SOCKET_URL = process.env.VITE_SOCKET_URL || 'http://localhost:8000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:8000';
 
 const useChatConnection = () => {
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  const {} = useChatStore();
+  // Destructure actions from the store
+  const { 
+    addMessage, 
+    addConversation,
+    setCurrentUser
+  } = useChatStore();
 
   useEffect(() => {
-    // Initialize socket connection
     const initializeSocket = () => {
       if (!socketRef.current) {
         setIsConnecting(true);
         
-        // Connect to the server
         const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
           SOCKET_URL,
           {
@@ -63,7 +66,6 @@ const useChatConnection = () => {
         
         socketRef.current = socket;
         
-        // Event listeners
         socket.on('connect', () => {
           console.log('Connected to server');
           setIsConnected(true);
@@ -75,67 +77,29 @@ const useChatConnection = () => {
           setIsConnected(false);
         });
         
-        socket.on('user-connected', (user) => {
-          console.log('User connected:', user);
-          // Handle user connected event
-        });
-        
-        socket.on('user-disconnected', (userId) => {
-          console.log('User disconnected:', userId);
-          // Handle user disconnected event
-        });
-        
+        // --- Implemented Event Handlers ---
+
         socket.on('receive-message', (message) => {
           console.log('Received message:', message);
-          // Add message to the appropriate conversation
-          // This assumes you have the conversationId in the message or can derive it
-          // addMessage(message.conversationId, message);
-        });
-        
-        socket.on('message-delivered', (messageId) => {
-          console.log('Message delivered:', messageId);
-          // Update message status to delivered
-          // updateMessage(conversationId, messageId, { status: 'Delivered' });
-        });
-        
-        socket.on('message-read', (messageId) => {
-          console.log('Message read:', messageId);
-          // Update message status to read
-          // updateMessage(conversationId, messageId, { status: 'Read' });
-        });
-        
-        socket.on('typing-start', (userId, conversationId) => {
-          console.log('User typing:', userId, conversationId);
-          // Show typing indicator for user in conversation
-        });
-        
-        socket.on('typing-stop', (userId, conversationId) => {
-          console.log('User stopped typing:', userId, conversationId);
-          // Hide typing indicator for user in conversation
+          // Assuming the message object from server includes conversationId
+          if (message.conversationId) {
+             addMessage(message.conversationId, message);
+          }
         });
         
         socket.on('conversation-created', (conversation) => {
           console.log('Conversation created:', conversation);
-          // addConversation(conversation);
-        });
-        
-        socket.on('conversation-updated', (conversation) => {
-          console.log('Conversation updated:', conversation);
-          // updateConversation(conversation.conversationId, conversation);
+          addConversation(conversation);
         });
         
         socket.on('login-success', (response) => {
           console.log('Login successful:', response);
-          // setCurrentUser(response.userProfile);
-          // Set conversations and users from response if provided
+          setCurrentUser(response.userProfile);
+          // In a real app, you might fetch initial conversations here via REST API
+          // or expect them in the socket payload
         });
-        
-        socket.on('login-error', (error) => {
-          console.error('Login error:', error);
-          // Handle login error
-        });
-        
-        // Handle connection errors
+
+        // Error handling
         socket.on('connect_error', (error) => {
           console.error('Connection error:', error);
           setIsConnecting(false);
@@ -145,18 +109,28 @@ const useChatConnection = () => {
     
     initializeSocket();
     
-    // Cleanup function
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, []);
+  }, [addMessage, addConversation, setCurrentUser]);
   
-  // Functions to emit events to the server
+  // --- Emitters ---
+
   const sendMessage = (conversationId: string, message: Omit<MessageEntity, 'messageId' | 'timestamp' | 'status' | 'conversationId'>) => {
     if (socketRef.current && isConnected) {
+      // Optimistically add message to UI
+      const tempMessage: MessageEntity = {
+        ...message,
+        messageId: `temp-${Date.now()}`,
+        timestamp: new Date(),
+        status: 'Sending',
+      };
+      addMessage(conversationId, tempMessage);
+
+      // Emit to server
       socketRef.current.emit('send-message', { ...message, conversationId });
     }
   };
@@ -173,12 +147,6 @@ const useChatConnection = () => {
     }
   };
   
-  const markAsRead = (messageId: string) => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('mark-as-read', messageId);
-    }
-  };
-  
   const typing = (conversationId: string) => {
     if (socketRef.current && isConnected) {
       socketRef.current.emit('typing', conversationId);
@@ -191,29 +159,14 @@ const useChatConnection = () => {
     }
   };
   
-  const login = (credentials: LoginRequest) => {
-    if (socketRef.current) {
-      socketRef.current.emit('login', credentials);
-    }
-  };
-  
-  const logout = () => {
-    if (socketRef.current && isConnected) {
-      socketRef.current.emit('logout');
-    }
-  };
-  
   return {
     isConnected,
     isConnecting,
     sendMessage,
     joinConversation,
     leaveConversation,
-    markAsRead,
     typing,
-    stopTyping,
-    login,
-    logout
+    stopTyping
   };
 };
 

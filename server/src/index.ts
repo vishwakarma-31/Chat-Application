@@ -8,18 +8,16 @@ import authRoutes from './routes/authRoutes';
 import messagesRoutes from './routes/messagesRoutes';
 import { initDatabaseConnections, closeDatabaseConnections } from './services/dbService';
 
-// Don't load environment variables from .env file to avoid conflicts
-// dotenv.config();
-
-// Debug: Print the PORT environment variable
-console.log('PORT environment variable:', process.env.PORT);
-console.log('PORT type:', typeof process.env.PORT);
+// Load environment variables
+dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Use a more restrictive CORS policy in production
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: process.env.CLIENT_URL || "*", 
     methods: ["GET", "POST"]
   }
 });
@@ -48,15 +46,33 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
+  // Join a specific conversation room
+  socket.on('join-conversation', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`User ${socket.id} joined room ${conversationId}`);
+  });
+
+  // Leave a specific conversation room
+  socket.on('leave-conversation', (conversationId) => {
+    socket.leave(conversationId);
+    console.log(`User ${socket.id} left room ${conversationId}`);
+  });
+
+  // Handle typing events
+  socket.on('typing', (conversationId) => {
+    socket.to(conversationId).emit('typing-start', 'user-id', conversationId); // Replace 'user-id' with actual ID logic
+  });
+
+  socket.on('stop-typing', (conversationId) => {
+    socket.to(conversationId).emit('typing-stop', 'user-id', conversationId);
+  });
+
   socket.on('disconnect', () => {
     console.log('A user disconnected:', socket.id);
   });
 });
 
-// Use port 8001 and ignore environment variables to avoid conflicts
-const PORT = 8001;
-console.log('Final PORT value:', PORT);
-console.log('Final PORT type:', typeof PORT);
+const PORT = process.env.PORT || 8000;
 
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

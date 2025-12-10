@@ -2,33 +2,35 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '../../stores/chatStore';
 
-// Extend the ImportMeta interface to include env
-declare global {
-  interface ImportMeta {
-    env: {
-      VITE_API_URL?: string;
-      VITE_SOCKET_URL?: string;
-    };
-  }
+interface SignupProps {
+  onSignupSuccess: () => void;
 }
 
-interface LoginProps {
-  onLoginSuccess: () => void;
-}
-
-const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
+const Signup: React.FC<SignupProps> = ({ onSignupSuccess }) => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { setCurrentUser } = useChatStore();
   const navigate = useNavigate();
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username || !password) {
-      setError('Please enter both username and password');
+    if (!username || !email || !password || !confirmPassword) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
       return;
     }
     
@@ -37,18 +39,18 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await fetch(`${API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, email, password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error || 'Signup failed');
       }
 
       // Save token (in a real app, consider HttpOnly cookies or secure storage)
@@ -58,7 +60,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       // Update global state
       setCurrentUser(data.userProfile);
       
-      onLoginSuccess();
+      onSignupSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -78,7 +80,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             OmegaChat
           </h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <p className="text-gray-600">Create your account</p>
         </div>
         
         {error && (
@@ -99,7 +101,22 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
-              placeholder="Try 'johndoe' or 'janesmith'"
+              placeholder="Choose a username"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="email" className="block text-gray-700 text-sm font-medium mb-2">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
+              placeholder="your@email.com"
             />
           </div>
           
@@ -114,7 +131,22 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
-              placeholder="Any password works for dev"
+              placeholder="Create a strong password"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="confirmPassword" className="block text-gray-700 text-sm font-medium mb-2">
+              Confirm Password
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isLoading}
+              placeholder="Confirm your password"
             />
           </div>
           
@@ -129,20 +161,20 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing in...
+                Creating Account...
               </span>
-            ) : 'Sign In'}
+            ) : 'Sign Up'}
           </button>
         </form>
         
         <div className="mt-6 text-center">
           <p className="text-gray-600 text-sm">
-            Don't have an account?{' '}
+            Already have an account?{' '}
             <button 
-              onClick={() => navigate('/signup')}
+              onClick={() => navigate('/login')}
               className="text-blue-500 hover:text-blue-700 font-medium transition-colors duration-300"
             >
-              Sign up
+              Sign in
             </button>
           </p>
         </div>
@@ -151,4 +183,4 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   );
 };
 
-export default Login;
+export default Signup;
