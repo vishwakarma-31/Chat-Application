@@ -9,7 +9,6 @@ import {
   LoginResponse 
 } from '../types/chatTypes';
 
-// Define event types (keeping interfaces same as original)
 interface ServerToClientEvents {
   'user-connected': (user: UserEntity) => void;
   'user-disconnected': (userId: string) => void;
@@ -42,10 +41,9 @@ const useChatConnection = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   
-  // Destructure actions from the store
   const { 
     addMessage, 
-    addConversation,
+    addConversation, 
     setCurrentUser
   } = useChatStore();
 
@@ -77,29 +75,20 @@ const useChatConnection = () => {
           setIsConnected(false);
         });
         
-        // --- Implemented Event Handlers ---
-
         socket.on('receive-message', (message) => {
-          console.log('Received message:', message);
-          // Assuming the message object from server includes conversationId
           if (message.conversationId) {
              addMessage(message.conversationId, message);
           }
         });
         
         socket.on('conversation-created', (conversation) => {
-          console.log('Conversation created:', conversation);
           addConversation(conversation);
         });
         
         socket.on('login-success', (response) => {
-          console.log('Login successful:', response);
           setCurrentUser(response.userProfile);
-          // In a real app, you might fetch initial conversations here via REST API
-          // or expect them in the socket payload
         });
 
-        // Error handling
         socket.on('connect_error', (error) => {
           console.error('Connection error:', error);
           setIsConnecting(false);
@@ -117,11 +106,8 @@ const useChatConnection = () => {
     };
   }, [addMessage, addConversation, setCurrentUser]);
   
-  // --- Emitters ---
-
   const sendMessage = (conversationId: string, message: Omit<MessageEntity, 'messageId' | 'timestamp' | 'status' | 'conversationId'>) => {
     if (socketRef.current && isConnected) {
-      // Optimistically add message to UI
       const tempMessage: MessageEntity = {
         ...message,
         messageId: `temp-${Date.now()}`,
@@ -129,8 +115,6 @@ const useChatConnection = () => {
         status: 'Sending',
       };
       addMessage(conversationId, tempMessage);
-
-      // Emit to server
       socketRef.current.emit('send-message', { ...message, conversationId });
     }
   };

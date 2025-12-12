@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { UserEntity, Session, LoginResponse, AuthStatus } from '../types/chatTypes';
 
 // Mock user data - in a real application, this would come from a database
-const mockUsers: UserEntity[] = [
+let mockUsers: UserEntity[] = [
   {
     userId: 'user-1',
     createdAt: new Date(),
@@ -37,6 +37,82 @@ const mockUsers: UserEntity[] = [
 
 // Secret key for JWT - should be stored in environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
+
+export const signup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { username, email, password } = req.body;
+    
+    // Validate input
+    if (!username || !email || !password) {
+      res.status(400).json({
+        error: 'Username, email, and password are required'
+      });
+      return;
+    }
+    
+    // Check if user already exists
+    const existingUser = mockUsers.find(u => u.profile.username === username || u.profile.displayName === email);
+    if (existingUser) {
+      res.status(409).json({
+        error: 'User with this username or email already exists'
+      });
+      return;
+    }
+    
+    // Create new user
+    const newUser: UserEntity = {
+      userId: `user-${mockUsers.length + 1}`,
+      createdAt: new Date(),
+      profile: {
+        displayName: email,
+        username: username,
+        onlineStatus: 'Online'
+      },
+      settings: {
+        notificationsEnabled: true,
+        readReceiptsEnabled: true
+      }
+    };
+    
+    mockUsers.push(newUser);
+    
+    // Create JWT tokens
+    const token = jwt.sign(
+      { userId: newUser.userId, username: newUser.profile.username },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    
+    const refreshToken = jwt.sign(
+      { userId: newUser.userId, username: newUser.profile.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    // Create session object
+    const session: Session = {
+      token,
+      refreshToken,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      issuedAt: new Date()
+    };
+    
+    // Create login response
+    const loginResponse: LoginResponse = {
+      status: 'Success' as AuthStatus,
+      session,
+      userProfile: newUser
+    };
+    
+    // Return successful response
+    res.status(201).json(loginResponse);
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+};
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {

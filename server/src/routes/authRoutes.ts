@@ -1,7 +1,10 @@
 import express from 'express';
-import { login, logout, refreshSession } from '../controllers/authController';
+import { login, logout, refreshSession, signup } from '../controllers/authController';
 
 const router = express.Router();
+
+// POST /api/auth/signup - User registration
+router.post('/signup', signup);
 
 // POST /api/auth/login - User login
 router.post('/login', login);

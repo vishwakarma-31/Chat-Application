@@ -9,9 +9,14 @@ interface MessageListProps {
 
 const MessageList: React.FC<MessageListProps> = ({ messages }) => {
   const { currentUser } = useChatStore();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Group consecutive messages from the same sender
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Group messages
   const groupedMessages = messages.reduce((groups, message) => {
     const lastGroup = groups[groups.length - 1];
     
@@ -27,74 +32,60 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
     return groups;
   }, [] as { senderId: string; messages: MessageEntity[] }[]);
   
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  
   return (
-    <div className="h-full overflow-y-auto p-4 bg-gradient-to-b from-gray-50 to-gray-100">
-      {groupedMessages.map((group, groupIndex) => (
-        <div key={groupIndex} className="mb-4">
-          {group.messages.map((message, messageIndex) => {
-            const isCurrentUser = message.senderId === currentUser?.userId;
-            const showAvatar = messageIndex === group.messages.length - 1;
-            const isFirstInGroup = messageIndex === 0;
-            
-            return (
-              <div 
-                key={message.messageId}
-                className={`flex mb-2 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-              >
-                {!isCurrentUser && showAvatar && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                    <span className="font-bold text-white text-xs">U</span>
-                  </div>
-                )}
-                
-                <div className="flex flex-col">
-                  {isFirstInGroup && !isCurrentUser && (
-                    <div className="text-xs text-gray-500 ml-2 mb-1">
-                      User Name
-                    </div>
-                  )}
-                  
-                  <div 
-                    className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
-                      isCurrentUser 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-none' 
-                        : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'
-                    }`}
-                  >
-                    <p>{message.body}</p>
-                    {messageIndex === group.messages.length - 1 && (
-                      <div className={`text-xs mt-1 flex justify-end ${
-                        isCurrentUser ? 'text-blue-100' : 'text-gray-500'
-                      }`}>
-                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                {isCurrentUser && showAvatar && (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center ml-2 mt-1 flex-shrink-0">
-                    <span className="font-bold text-white text-xs">
-                      {currentUser?.profile?.username?.charAt(0).toUpperCase() || 'Y'}
-                    </span>
-                  </div>
-                )}
+    <div className="h-full overflow-y-auto p-4 space-y-6">
+      {groupedMessages.map((group, groupIndex) => {
+        const isSelf = group.senderId === currentUser?.userId;
+        
+        return (
+          <div key={groupIndex} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+            {!isSelf && (
+              <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0 mr-2 flex items-center justify-center text-xs font-bold text-slate-500 self-end mb-1">
+                U
               </div>
-            );
-          })}
-        </div>
-      ))}
-      
-      <div ref={messagesEndRef} />
+            )}
+            
+            <div className={`flex flex-col space-y-1 max-w-[75%] ${isSelf ? 'items-end' : 'items-start'}`}>
+              {group.messages.map((message, msgIndex) => {
+                const isFirst = msgIndex === 0;
+                const isLast = msgIndex === group.messages.length - 1;
+                
+                return (
+                  <div 
+                    key={message.messageId}
+                    className={`
+                      px-4 py-2.5 shadow-sm text-sm relative group
+                      ${isSelf 
+                        ? 'bg-indigo-600 text-white rounded-l-2xl rounded-r-md' 
+                        : 'bg-white text-slate-700 border border-slate-100 rounded-r-2xl rounded-l-md'
+                      }
+                      ${isSelf && isFirst ? 'rounded-tr-2xl' : ''}
+                      ${isSelf && isLast ? 'rounded-br-2xl' : ''}
+                      ${!isSelf && isFirst ? 'rounded-tl-2xl' : ''}
+                      ${!isSelf && isLast ? 'rounded-bl-2xl' : ''}
+                    `}
+                  >
+                    <p className="leading-relaxed">{message.body}</p>
+                    <div className={`text-[10px] mt-1 flex items-center ${isSelf ? 'text-indigo-200 justify-end' : 'text-slate-400'}`}>
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {isSelf && (
+                        <span className="ml-1">
+                          {message.status === 'Read' ? (
+                            <svg className="w-3 h-3 text-blue-300" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                          ) : (
+                            <svg className="w-3 h-3 text-indigo-300" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+      <div ref={bottomRef} />
     </div>
   );
 };
