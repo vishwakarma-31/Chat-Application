@@ -1,15 +1,6 @@
 import React, { useState } from 'react';
 import { useChatStore } from '../../stores/chatStore';
 
-// Extend the ImportMeta interface to include env
-declare global {
-  interface ImportMeta {
-    readonly env: {
-      readonly VITE_API_URL?: string;
-    };
-  }
-}
-
 interface LoginProps {
   onLoginSuccess: () => void;
 }
@@ -65,7 +56,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-8 w-full max-w-md border border-white/50 relative z-10">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg shadow-indigo-300">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
